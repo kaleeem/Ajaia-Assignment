@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { FileText, Users, User, Import, FolderOpen } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { FileText, Users, User, Import, ChevronsUpDown, Check, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { MOCK_USERS } from "@/lib/users";
+import { createDocument } from "@/lib/documents-client";
+import { filenameToTitle, isSupportedImportFile, textToTiptapContent } from "@/lib/import";
 
 const navItems = [
   { label: "All Documents", href: "/dashboard", icon: FileText },
@@ -13,6 +19,42 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, userId, setCurrentUser, hydrated } = useCurrentUser();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  const initials = user.name
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleSwitchUser = (id: string) => {
+    setCurrentUser(id);
+    // Re-run the server dashboard so it reads the updated current-user cookie.
+    router.refresh();
+  };
+
+  const handleImportFile = async (file: File) => {
+    if (!isSupportedImportFile(file.name)) {
+      toast.error("Unsupported file. Supported files: .txt, .md");
+      return;
+    }
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const content = textToTiptapContent(text);
+      const doc = await createDocument(userId, filenameToTitle(file.name), content);
+      toast.success(`Imported "${file.name}"`);
+      router.push(`/documents/${doc.id}`);
+    } catch {
+      toast.error("Failed to import file. Please try again.");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <aside className="flex h-full w-60 flex-col border-r border-border bg-background">
@@ -52,27 +94,67 @@ export function Sidebar() {
 
         {/* Import action */}
         <button
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          onClick={() => {
-            // Import behavior to be implemented later
-          }}
+          type="button"
+          disabled={importing}
+          onClick={() => fileInputRef.current?.click()}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
         >
-          <Import className="h-4 w-4 shrink-0" />
-          Import
+          <Upload className="h-4 w-4 shrink-0" />
+          {importing ? "Importing…" : "Import"}
         </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.md,.markdown"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handleImportFile(file);
+            e.target.value = "";
+          }}
+        />
+        <p className="px-3 pt-1 text-xs text-muted-foreground">Supported files: .txt, .md</p>
       </nav>
 
-      {/* User / Profile area */}
+      {/* User / Profile + mock user switcher */}
       <div className="border-t border-border p-3">
-        <div className="flex items-center gap-3 rounded-md px-3 py-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
-            YO
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">Your Name</p>
-            <p className="truncate text-xs text-muted-foreground">you@example.com</p>
-          </div>
+        <div className="px-1 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Switch user
         </div>
+        <div className="flex flex-col gap-1">
+          {MOCK_USERS.map((u) => {
+            const active = hydrated && u.id === userId;
+            return (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => handleSwitchUser(u.id)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                  active
+                    ? "bg-accent text-accent-foreground font-medium"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
+                  {u.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="block truncate text-sm font-medium text-foreground">
+                    {u.name}
+                  </span>
+                  <span className="block truncate text-xs">{u.email}</span>
+                </span>
+                {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+              </button>
+            );
+          })}
+        </div>
+        {hydrated && (
+          <p className="mt-2 truncate px-1 text-xs text-muted-foreground">
+            Signed in as <span className="font-medium">{user.name}</span> (mock)
+          </p>
+        )}
       </div>
     </aside>
   );

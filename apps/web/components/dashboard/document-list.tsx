@@ -3,11 +3,23 @@ import type { Document } from "@/lib/types";
 
 interface DocumentListProps {
   documents: Document[];
+  currentUserId: string;
+  filter?: "all" | "owned" | "shared";
 }
 
-export function DocumentList({ documents }: DocumentListProps) {
-  const owned = documents.filter((d) => d.ownership === "owned");
-  const shared = documents.filter((d) => d.ownership === "shared");
+export function DocumentList({
+  documents,
+  currentUserId,
+  filter = "all",
+}: DocumentListProps) {
+  const owned = documents.filter((d) => (d.ownerId ?? "") === currentUserId);
+  const shared = documents.filter((d) => (d.ownerId ?? "") !== currentUserId);
+
+  const visibleOwned = filter === "shared" ? [] : owned;
+  const visibleShared = filter === "owned" ? [] : shared;
+
+  const hasOwned = visibleOwned.length > 0;
+  const hasShared = visibleShared.length > 0;
 
   if (documents.length === 0) {
     return (
@@ -20,29 +32,43 @@ export function DocumentList({ documents }: DocumentListProps) {
     );
   }
 
+  if (!hasOwned && !hasShared) {
+    const message =
+      filter === "owned"
+        ? "No owned documents yet."
+        : filter === "shared"
+          ? "No documents have been shared with you."
+          : "No documents to show.";
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-muted-foreground text-sm">{message}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
-      {owned.length > 0 && (
+      {hasOwned && (
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            My Documents
+            {filter === "owned" ? "Owned by Me" : "My Documents"}
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {owned.map((doc) => (
-              <DocumentCard key={doc.id} document={doc} />
+            {visibleOwned.map((doc) => (
+              <DocumentCard key={doc.id} document={doc} currentUserId={currentUserId} />
             ))}
           </div>
         </section>
       )}
 
-      {shared.length > 0 && (
+      {hasShared && (
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Shared with Me
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {shared.map((doc) => (
-              <DocumentCard key={doc.id} document={doc} />
+            {visibleShared.map((doc) => (
+              <DocumentCard key={doc.id} document={doc} currentUserId={currentUserId} />
             ))}
           </div>
         </section>

@@ -1,5 +1,4 @@
 "use client";
-import { defaultEditorContent } from "@/lib/content";
 import {
   EditorCommand,
   EditorCommandEmpty,
@@ -14,7 +13,7 @@ import {
   handleImageDrop,
   handleImagePaste,
 } from "novel";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { defaultExtensions } from "./extensions";
 import { ColorSelector } from "./selectors/color-selector";
@@ -32,8 +31,14 @@ const hljs = require("highlight.js");
 
 const extensions = [...defaultExtensions, slashCommand];
 
-const TailwindAdvancedEditor = () => {
-  const [initialContent, setInitialContent] = useState<null | JSONContent>(null);
+interface TailwindAdvancedEditorProps {
+  /** Initial Tiptap JSON document (from the database). */
+  initialContent?: JSONContent;
+  /** Called on every editor change with the latest Tiptap JSON. */
+  onUpdate?: (json: JSONContent) => void;
+}
+
+const TailwindAdvancedEditor = ({ initialContent, onUpdate }: TailwindAdvancedEditorProps) => {
   const [saveStatus, setSaveStatus] = useState("Saved");
   const [charsCount, setCharsCount] = useState();
 
@@ -57,16 +62,10 @@ const TailwindAdvancedEditor = () => {
     const json = editor.getJSON();
     setCharsCount(editor.storage.characterCount.words());
     window.localStorage.setItem("html-content", highlightCodeblocks(editor.getHTML()));
-    window.localStorage.setItem("novel-content", JSON.stringify(json));
+    window.localStorage.setItem("ajaia-docs-content", JSON.stringify(json));
     window.localStorage.setItem("markdown", editor.storage.markdown.getMarkdown());
     setSaveStatus("Saved");
   }, 500);
-
-  useEffect(() => {
-    const content = window.localStorage.getItem("novel-content");
-    if (content) setInitialContent(JSON.parse(content));
-    else setInitialContent(defaultEditorContent);
-  }, []);
 
   if (!initialContent) return null;
 
@@ -96,6 +95,7 @@ const TailwindAdvancedEditor = () => {
           }}
           onUpdate={({ editor }) => {
             debouncedUpdates(editor);
+            onUpdate?.(editor.getJSON());
             setSaveStatus("Unsaved");
           }}
           slotAfter={<ImageResizer />}

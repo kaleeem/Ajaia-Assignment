@@ -8,7 +8,7 @@ import Providers from "./providers";
 
 const title = "Ajaia Docs";
 const description =
-  "A lightweight collaborative document workspace";
+  "A collaborative rich-text editor for teams";
 
 export const metadata: Metadata = {
   title,

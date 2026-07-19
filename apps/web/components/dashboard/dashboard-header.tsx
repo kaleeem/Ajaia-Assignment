@@ -3,14 +3,27 @@
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/tailwind/ui/button";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export function DashboardHeader() {
   const router = useRouter();
+  const { userId } = useCurrentUser();
 
-  const handleNewDocument = () => {
-    // Generate a temporary ID until real persistence is wired up
-    const tempId = `new-${Math.random().toString(36).slice(2, 9)}`;
-    router.push(`/documents/${tempId}`);
+  const handleNewDocument = async () => {
+    try {
+      const res = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerId: userId }),
+      });
+      if (!res.ok) throw new Error("create failed");
+      const { id } = (await res.json()) as { id: string };
+      router.push(`/documents/${id}`);
+    } catch {
+      // Fallback: open editor with a temporary id so the user isn't blocked
+      const tempId = `new-${Math.random().toString(36).slice(2, 9)}`;
+      router.push(`/documents/${tempId}`);
+    }
   };
 
   return (
