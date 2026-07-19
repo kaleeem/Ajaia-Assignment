@@ -2,6 +2,8 @@
 
 A lightweight collaborative document editor built for the Ajaia AI-Native Full Stack Developer Assessment.
 
+**Live Deployment**: [https://ajaia-assignment-web-vk87.vercel.app/welcome](https://ajaia-assignment-web-vk87.vercel.app/welcome)
+
 ## Overview
 
 Ajaia Docs supports creating, renaming, editing, persisting, importing, owning, and sharing rich-text documents between seeded users. The application uses Tiptap for rich-text editing, Supabase/PostgreSQL for persistence, and Next.js App Router for the web interface.
