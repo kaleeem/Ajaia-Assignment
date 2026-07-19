@@ -1,3 +1,4 @@
+import { FileText } from "lucide-react";
 import { DocumentCard } from "./document-card";
 import type { Document } from "@/lib/types";
 
@@ -5,6 +6,25 @@ interface DocumentListProps {
   documents: Document[];
   currentUserId: string;
   filter?: "all" | "owned" | "shared";
+}
+
+interface EmptyStateProps {
+  title: string;
+  description: string;
+}
+
+function EmptyState({ title, description }: EmptyStateProps) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-muted">
+        <FileText className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs">{description}</p>
+      </div>
+    </div>
+  );
 }
 
 export function DocumentList({
@@ -21,28 +41,30 @@ export function DocumentList({
   const hasOwned = visibleOwned.length > 0;
   const hasShared = visibleShared.length > 0;
 
-  if (documents.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-muted-foreground text-sm">No documents yet.</p>
-        <p className="text-muted-foreground text-xs mt-1">
-          Create your first document using the + New Document button above.
-        </p>
-      </div>
-    );
-  }
-
+  // Empty states — contextual to the active filter
   if (!hasOwned && !hasShared) {
-    const message =
-      filter === "owned"
-        ? "No owned documents yet."
-        : filter === "shared"
-          ? "No documents have been shared with you."
-          : "No documents to show.";
+    if (filter === "owned") {
+      return (
+        <EmptyState
+          title="No owned documents"
+          description="Documents you create will appear here."
+        />
+      );
+    }
+    if (filter === "shared") {
+      return (
+        <EmptyState
+          title="No shared documents"
+          description="Documents shared with you will appear here."
+        />
+      );
+    }
+    // filter === "all" — no documents at all
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-muted-foreground text-sm">{message}</p>
-      </div>
+      <EmptyState
+        title="No documents yet"
+        description="Create your first document to get started."
+      />
     );
   }
 
@@ -53,7 +75,7 @@ export function DocumentList({
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {filter === "owned" ? "Owned by Me" : "My Documents"}
           </h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visibleOwned.map((doc) => (
               <DocumentCard key={doc.id} document={doc} currentUserId={currentUserId} />
             ))}
@@ -66,7 +88,7 @@ export function DocumentList({
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Shared with Me
           </h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visibleShared.map((doc) => (
               <DocumentCard key={doc.id} document={doc} currentUserId={currentUserId} />
             ))}

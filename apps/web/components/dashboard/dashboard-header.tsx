@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/tailwind/ui/button";
@@ -8,8 +9,12 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 export function DashboardHeader() {
   const router = useRouter();
   const { userId } = useCurrentUser();
+  const [creating, setCreating] = useState(false);
 
   const handleNewDocument = async () => {
+    // Prevent double-click from creating two documents.
+    if (creating) return;
+    setCreating(true);
     try {
       const res = await fetch("/api/documents", {
         method: "POST",
@@ -20,9 +25,11 @@ export function DashboardHeader() {
       const { id } = (await res.json()) as { id: string };
       router.push(`/documents/${id}`);
     } catch {
-      // Fallback: open editor with a temporary id so the user isn't blocked
+      // Fallback: use a temp ID so the user isn't blocked.
       const tempId = `new-${Math.random().toString(36).slice(2, 9)}`;
       router.push(`/documents/${tempId}`);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -47,11 +54,21 @@ export function DashboardHeader() {
         <Button
           id="new-document-btn"
           onClick={handleNewDocument}
+          disabled={creating}
           className="gap-2 shrink-0"
           size="sm"
         >
-          <Plus className="h-4 w-4" />
-          New Document
+          {creating ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Creating…
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" />
+              New Document
+            </>
+          )}
         </Button>
       </div>
     </div>

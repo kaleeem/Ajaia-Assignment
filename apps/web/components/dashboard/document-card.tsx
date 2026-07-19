@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, ExternalLink, Pencil as RenameIcon, Share2, Trash2, Clock, User } from "lucide-react";
+import {
+  MoreHorizontal,
+  ExternalLink,
+  Share2,
+  Trash2,
+  Clock,
+  User,
+} from "lucide-react";
 import { Button } from "@/components/tailwind/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/tailwind/ui/popover";
 import { cn } from "@/lib/utils";
@@ -41,7 +48,10 @@ export function DocumentCard({ document: doc, currentUserId }: DocumentCardProps
     if (deleting) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/documents/${doc.id}?userId=${encodeURIComponent(currentUserId)}`, { method: "DELETE" });
+      const res = await fetch(
+        `/api/documents/${doc.id}?userId=${encodeURIComponent(currentUserId)}`,
+        { method: "DELETE" },
+      );
       if (res.ok) router.refresh();
     } catch {
       setDeleting(false);
@@ -51,26 +61,27 @@ export function DocumentCard({ document: doc, currentUserId }: DocumentCardProps
   return (
     <div
       className={cn(
-        "group relative flex flex-col gap-3 rounded-lg border p-4 transition-colors cursor-pointer",
-        "hover:border-primary/30 hover:bg-accent/40",
-        "border-border bg-card"
+        "group relative flex flex-col gap-4 rounded-lg border p-4 transition-all cursor-pointer",
+        "border-border bg-card",
+        "hover:border-border/80 hover:bg-accent/30 hover:shadow-sm",
       )}
       onClick={handleOpen}
     >
-      {/* Ownership badge */}
+      {/* Top row: badge + action menu */}
       <div className="flex items-start justify-between gap-2">
+        {/* Ownership badge */}
         <span
           className={cn(
-            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium leading-none",
             isOwned
               ? "bg-primary/10 text-primary"
-              : "bg-secondary text-secondary-foreground"
+              : "bg-muted text-muted-foreground border border-border",
           )}
         >
           {isOwned ? "Owned" : "Shared"}
         </span>
 
-        {/* Action menu — stops propagation so card click doesn't fire */}
+        {/* Action menu — owner only, stops card click from propagating */}
         {isOwned && (
           <div onClick={(e) => e.stopPropagation()}>
             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -78,18 +89,36 @@ export function DocumentCard({ document: doc, currentUserId }: DocumentCardProps
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                   aria-label="Document actions"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-44 p-1" align="end">
-                <ActionItem icon={ExternalLink} label="Open" onClick={() => { setPopoverOpen(false); handleOpen(); }} />
-                <ActionItem icon={RenameIcon} label="Rename" onClick={() => { setPopoverOpen(false); handleOpen(); }} />
-                <ActionItem icon={Share2} label="Share" onClick={() => { setPopoverOpen(false); handleOpen(); }} />
+                <ActionItem
+                  icon={ExternalLink}
+                  label="Open"
+                  onClick={() => {
+                    setPopoverOpen(false);
+                    handleOpen();
+                  }}
+                />
+                <ActionItem
+                  icon={Share2}
+                  label="Share"
+                  onClick={() => {
+                    setPopoverOpen(false);
+                    handleOpen();
+                  }}
+                />
                 <div className="my-1 border-t border-border" />
-                <ActionItem icon={Trash2} label="Delete" onClick={handleDelete} destructive />
+                <ActionItem
+                  icon={Trash2}
+                  label={deleting ? "Deleting…" : "Delete"}
+                  onClick={handleDelete}
+                  destructive
+                />
               </PopoverContent>
             </Popover>
           </div>
@@ -97,12 +126,12 @@ export function DocumentCard({ document: doc, currentUserId }: DocumentCardProps
       </div>
 
       {/* Title */}
-      <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2 pr-2">
+      <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2 pr-2 flex-1">
         {doc.title}
       </h3>
 
-      {/* Metadata */}
-      <div className="mt-auto flex flex-col gap-1">
+      {/* Metadata footer */}
+      <div className="flex flex-col gap-1.5 mt-auto">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <User className="h-3 w-3 shrink-0" />
           <span className="truncate">
@@ -136,7 +165,7 @@ function ActionItem({
         "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors",
         destructive
           ? "text-destructive hover:bg-destructive/10"
-          : "text-foreground hover:bg-accent"
+          : "text-foreground hover:bg-accent",
       )}
       onClick={onClick}
     >

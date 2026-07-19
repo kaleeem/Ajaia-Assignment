@@ -1,28 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { FileText, Users, User, Import, ChevronsUpDown, Check, Upload } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FileText, Users, User, Upload, LogOut } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { MOCK_USERS } from "@/lib/users";
+import { CURRENT_USER_STORAGE_KEY } from "@/lib/users";
 import { createDocument } from "@/lib/documents-client";
 import { filenameToTitle, isSupportedImportFile, textToTiptapContent } from "@/lib/import";
 
 const navItems = [
-  { label: "All Documents", href: "/dashboard", icon: FileText },
-  { label: "Owned by me", href: "/dashboard?filter=owned", icon: User },
-  { label: "Shared with me", href: "/dashboard?filter=shared", icon: Users },
+  { label: "All Documents", href: "/dashboard", icon: FileText, filter: null },
+  { label: "Owned by me", href: "/dashboard?filter=owned", icon: User, filter: "owned" },
+  { label: "Shared with me", href: "/dashboard?filter=shared", icon: Users, filter: "shared" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, userId, setCurrentUser, hydrated } = useCurrentUser();
+  // useSearchParams gives the router-driven search params — accurate and
+  // flicker-free compared to window.location.search (which lags behind).
+  const searchParams = useSearchParams();
+  const { user, userId, hydrated } = useCurrentUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const initials = user.name
     .split(" ")
@@ -31,10 +35,13 @@ export function Sidebar() {
     .slice(0, 2)
     .toUpperCase();
 
-  const handleSwitchUser = (id: string) => {
-    setCurrentUser(id);
-    // Re-run the server dashboard so it reads the updated current-user cookie.
-    router.refresh();
+  const handleSignOut = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+    }
+    document.cookie = `${CURRENT_USER_STORAGE_KEY}=; path=/; max-age=0; samesite=lax`;
+    setProfileMenuOpen(false);
+    router.push("/welcome");
   };
 
   const handleImportFile = async (file: File) => {
@@ -56,10 +63,12 @@ export function Sidebar() {
     }
   };
 
+  const currentFilter = searchParams.get("filter"); // null | "owned" | "shared"
+
   return (
     <aside className="flex h-full w-60 flex-col border-r border-border bg-background">
       {/* Logo / Wordmark */}
-      <div className="flex items-center gap-2 px-5 py-5 border-b border-border">
+      <div className="flex items-center gap-2.5 px-5 py-[18px] border-b border-border">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-bold select-none">
           A
         </div>
@@ -70,17 +79,22 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-0.5 p-3">
-        {navItems.map(({ label, href, icon: Icon }) => {
-          const isActive = pathname === href || (href === "/dashboard" && pathname === "/dashboard");
+        {navItems.map(({ label, href, icon: Icon, filter }) => {
+          // Derive active state from router-driven searchParams (no flicker).
+          const isActive =
+            pathname === "/dashboard" &&
+            (filter === null ? currentFilter === null : currentFilter === filter);
+
           return (
             <Link
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm",
+                // Remove transition-colors to eliminate hover flicker during navigation.
                 isActive
                   ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -94,10 +108,11 @@ export function Sidebar() {
 
         {/* Import action */}
         <button
+          id="import-file-btn"
           type="button"
           disabled={importing}
           onClick={() => fileInputRef.current?.click()}
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-60"
         >
           <Upload className="h-4 w-4 shrink-0" />
           {importing ? "Importing…" : "Import"}
@@ -113,49 +128,61 @@ export function Sidebar() {
             e.target.value = "";
           }}
         />
-        <p className="px-3 pt-1 text-xs text-muted-foreground">Supported files: .txt, .md</p>
+        <p className="px-3 pt-1 text-xs text-muted-foreground">
+          Supported: .txt, .md
+        </p>
       </nav>
 
-      {/* User / Profile + mock user switcher */}
-      <div className="border-t border-border p-3">
-        <div className="px-1 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Switch user
-        </div>
-        <div className="flex flex-col gap-1">
-          {MOCK_USERS.map((u) => {
-            const active = hydrated && u.id === userId;
-            return (
+      {/* Profile area — current user only */}
+      {hydrated && (
+        <div className="border-t border-border p-3 relative">
+          <button
+            id="profile-menu-btn"
+            type="button"
+            onClick={() => setProfileMenuOpen((v) => !v)}
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-accent group"
+            aria-haspopup="true"
+            aria-expanded={profileMenuOpen}
+          >
+            {/* Avatar */}
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold select-none">
+              {initials}
+            </span>
+            {/* Name + email */}
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block truncate text-sm font-medium text-foreground">
+                {user.name}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {user.email}
+              </span>
+            </span>
+            {/* Chevron */}
+            <span className="text-muted-foreground text-xs opacity-60 group-hover:opacity-100">
+              ⌃
+            </span>
+          </button>
+
+          {/* Profile popover */}
+          {profileMenuOpen && (
+            <div className="absolute bottom-[calc(100%-0.5rem)] left-3 right-3 mb-1 rounded-md border border-border bg-popover shadow-md z-50 overflow-hidden">
+              <div className="px-3 py-2 border-b border-border">
+                <p className="text-xs text-muted-foreground">Demo account</p>
+                <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+              </div>
               <button
-                key={u.id}
+                id="sign-out-btn"
                 type="button"
-                onClick={() => handleSwitchUser(u.id)}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                  active
-                    ? "bg-accent text-accent-foreground font-medium"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
+                onClick={handleSignOut}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold shrink-0">
-                  {u.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase()}
-                </span>
-                <span className="min-w-0 flex-1 text-left">
-                  <span className="block truncate text-sm font-medium text-foreground">
-                    {u.name}
-                  </span>
-                  <span className="block truncate text-xs">{u.email}</span>
-                </span>
-                {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                <LogOut className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                Sign out
               </button>
-            );
-          })}
+            </div>
+          )}
         </div>
-        {hydrated && (
-          <p className="mt-2 truncate px-1 text-xs text-muted-foreground">
-            Signed in as <span className="font-medium">{user.name}</span> (mock)
-          </p>
-        )}
-      </div>
+      )}
     </aside>
   );
 }

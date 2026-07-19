@@ -1,17 +1,17 @@
 import { cookies } from "next/headers";
-import { Sidebar } from "@/components/dashboard/sidebar";
+import { redirect } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { DocumentList } from "@/components/dashboard/document-list";
 import { listOwnedDocuments, listSharedDocuments } from "@/lib/documents";
-import { DEFAULT_USER_ID, CURRENT_USER_STORAGE_KEY } from "@/lib/users";
+import { CURRENT_USER_STORAGE_KEY, MOCK_USERS } from "@/lib/users";
 import type { Document } from "@/lib/types";
 
 type Filter = "all" | "owned" | "shared";
 
 /**
- * Dashboard page — server component.
- * Loads real documents for the current mock user: owned docs + docs shared
- * with them (via `document_shares`). Honors the `?filter=` nav param.
+ * Dashboard page content — server component.
+ * Renders the dashboard header and the document grid inside DashboardLayout.
+ * Reads real documents for the current mock user and filters them accordingly.
  */
 export default async function DashboardPage({
   searchParams,
@@ -19,8 +19,14 @@ export default async function DashboardPage({
   searchParams: Promise<{ filter?: string }>;
 }) {
   const cookieStore = await cookies();
-  const currentUserId =
-    cookieStore.get(CURRENT_USER_STORAGE_KEY)?.value ?? DEFAULT_USER_ID;
+  const storedId = cookieStore.get(CURRENT_USER_STORAGE_KEY)?.value;
+  const isValid = storedId && MOCK_USERS.some((u) => u.id === storedId);
+
+  if (!isValid) {
+    redirect("/welcome");
+  }
+
+  const currentUserId = storedId as string;
 
   const { filter } = await searchParams;
   const activeFilter: Filter =
@@ -38,19 +44,13 @@ export default async function DashboardPage({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-
-      <main className="flex flex-1 flex-col overflow-y-auto">
-        <div className="flex flex-col gap-6 p-6 sm:p-8 max-w-7xl w-full mx-auto">
-          <DashboardHeader />
-          <DocumentList
-            documents={documents}
-            currentUserId={currentUserId}
-            filter={activeFilter}
-          />
-        </div>
-      </main>
+    <div className="flex flex-col gap-6 p-6 sm:p-8 max-w-5xl w-full mx-auto">
+      <DashboardHeader />
+      <DocumentList
+        documents={documents}
+        currentUserId={currentUserId}
+        filter={activeFilter}
+      />
     </div>
   );
 }
