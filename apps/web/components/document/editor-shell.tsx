@@ -99,14 +99,22 @@ export function EditorShell({
         signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error(`save failed: ${res.status}`);
+      if (!res.ok) {
+        let errBody: { error?: string } = {};
+        try { errBody = await res.json(); } catch { /* ignore */ }
+        const errMsg = errBody.error ?? `HTTP ${res.status}`;
+        console.error("[SAVE_DOCUMENT_FAILED]", { documentId, actor: actorId, status: res.status, error: errMsg });
+        throw new Error(`save failed: ${res.status} — ${errMsg}`);
+      }
       lastSavedContent.current = currentContentStr;
       lastSavedTitle.current = currentTitle;
       setSaveState("saved");
     } catch (err) {
       // AbortError is intentional (superseded request) — not a real error.
       if ((err as Error).name === "AbortError") return;
+      console.error("[SAVE_DOCUMENT_FAILED]", { documentId, error: (err as Error).message });
       setSaveState("error");
+      toast.error("Autosave failed — your changes may not have been saved.", { id: "autosave-error", duration: 4000 });
     }
   }, [documentId]);
   // NOTE: documentId is the only dep needed. userId is read via ref above.

@@ -9,6 +9,21 @@ import { emptyEditorContent } from "@/lib/content";
  * Accepts optional `title` and `content` (used by file import).
  */
 export async function POST(req: Request) {
+  // Diagnostic: confirm env vars are available (boolean only — no values logged)
+  const hasSupabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const hasSupabaseKey = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+  if (!hasSupabaseUrl || !hasSupabaseKey) {
+    console.error("[CREATE_DOCUMENT_FAILED] Missing Supabase env vars", {
+      hasSupabaseUrl,
+      hasSupabaseKey,
+    });
+    return NextResponse.json(
+      { error: "Server configuration error: missing database credentials." },
+      { status: 500 },
+    );
+  }
+
   try {
     let ownerId = DEFAULT_USER_ID;
     let title = "Untitled Document";
@@ -31,6 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ id: doc.id });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[CREATE_DOCUMENT_FAILED]", { error: message });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

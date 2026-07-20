@@ -2,6 +2,9 @@ import { EditorShell } from "@/components/document/editor-shell";
 import { getDocument } from "@/lib/documents";
 import { emptyEditorContent } from "@/lib/content";
 
+// Always load fresh document content — never serve cached/stale editor state.
+export const dynamic = "force-dynamic";
+
 interface DocumentPageProps {
   params: Promise<{ id: string }>;
 }

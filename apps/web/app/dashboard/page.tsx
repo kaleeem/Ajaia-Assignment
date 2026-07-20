@@ -6,6 +6,9 @@ import { listOwnedDocuments, listSharedDocuments } from "@/lib/documents";
 import { CURRENT_USER_STORAGE_KEY, MOCK_USERS } from "@/lib/users";
 import type { Document } from "@/lib/types";
 
+// Always fetch fresh data — never serve a stale cached page after creates/edits.
+export const dynamic = "force-dynamic";
+
 type Filter = "all" | "owned" | "shared";
 
 /**
@@ -39,7 +42,9 @@ export default async function DashboardPage({
       listSharedDocuments(currentUserId),
     ]);
     documents = [...owned, ...shared];
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[FETCH_DOCUMENT_FAILED] dashboard list", { error: msg, currentUserId });
     documents = [];
   }
 

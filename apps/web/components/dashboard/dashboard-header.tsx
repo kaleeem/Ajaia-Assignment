@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/tailwind/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
@@ -21,13 +22,24 @@ export function DashboardHeader() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ownerId: userId }),
       });
-      if (!res.ok) throw new Error("create failed");
+      if (!res.ok) {
+        let errMsg = "Failed to create document";
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body.error) errMsg = body.error;
+          console.error("[CREATE_DOCUMENT_FAILED]", { status: res.status, error: body.error, userId });
+        } catch {
+          console.error("[CREATE_DOCUMENT_FAILED]", { status: res.status, userId });
+        }
+        toast.error(errMsg);
+        return;
+      }
       const { id } = (await res.json()) as { id: string };
       router.push(`/documents/${id}`);
-    } catch {
-      // Fallback: use a temp ID so the user isn't blocked.
-      const tempId = `new-${Math.random().toString(36).slice(2, 9)}`;
-      router.push(`/documents/${tempId}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Network error";
+      console.error("[CREATE_DOCUMENT_FAILED]", { error: msg, userId });
+      toast.error("Failed to create document. Please check your connection and try again.");
     } finally {
       setCreating(false);
     }

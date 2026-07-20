@@ -46,6 +46,7 @@ export async function GET(req: Request, { params }: Params) {
     return NextResponse.json(doc);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[FETCH_DOCUMENT_FAILED]", { id, currentUserId, error: message });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -85,6 +86,7 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json(updated);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[SAVE_DOCUMENT_FAILED]", { id, actor, error: message });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -113,6 +115,7 @@ export async function DELETE(req: Request, { params }: Params) {
     return NextResponse.json({ id });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[DELETE_DOCUMENT_FAILED]", { id, currentUserId, error: message });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

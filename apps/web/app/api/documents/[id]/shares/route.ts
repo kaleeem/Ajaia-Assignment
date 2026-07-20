@@ -34,6 +34,7 @@ export async function GET(req: Request, { params }: Params) {
     return NextResponse.json({ shares });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[SHARE_DOCUMENT_FAILED] list shares", { id, currentUserId, error: message });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -65,9 +66,11 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ share });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[SHARE_DOCUMENT_FAILED] grant share", { id, ownerId, targetUserId, error: message });
     let status = 500;
     if (message.includes("yourself")) status = 400;
     else if (message.includes("owner")) status = 403;
     return NextResponse.json({ error: message }, { status });
   }
 }
+
